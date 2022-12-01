@@ -1,0 +1,392 @@
+                               SYSTEM VERILOG LAB
+
+1. DECADE COUNTER
+// Code your design here
+module decade_counter(f,n,clk);
+  input [3:0]n;
+  input clk;
+  output reg [3:0]f;
+  initial f=4'b0000;
+  always@(posedge clk)
+    begin
+      f=(f==n-1'b1)?4'b0000:(f+1'b1);
+    end
+endmodule
+
+// Code your testbench here
+// or browse Examples
+module testbench_decade_counter;
+  reg [3:0]n;
+  reg clk;
+  wire [3:0]f;
+  decade_counter g1(f,n,clk);
+  initial begin
+    clk=0;
+    n=4'b1010;
+  end
+  always #2clk=~clk;
+  initial $monitor($time," f=%b, clk=%b",f,clk);
+  initial #80 $stop;
+  initial begin
+    $dumpvars;
+    $dumpfile("dump.vcd");
+  end
+endmodule
+
+
+
+
+
+
+2.101 Sequence Detector Mealy Machine
+module sequence_detector(q,a,clk,rst);
+  output reg q;
+  input clk,rst,a;
+  parameter s0=2'b00;
+  parameter s1=2'b01;
+  parameter s2=2'b10;
+  reg [1:0]present_state;
+  initial present_state=s0;
+  always@(posedge clk)
+    begin
+    if(rst)
+      begin present_state=s0; q=0;end
+   else
+    case(present_state)
+      s0: begin present_state=a?s1:s0; q=0; end
+      s1: begin present_state=(~a)?s2:s1; q=0; end
+      s2: begin present_state=a?s1:s0; q=a?1:0; end
+    endcase
+  end
+endmodule
+
+module sequence_detector_tb;
+  wire q;
+  reg a,clk,rst;
+  sequence_detector g1(q,a,clk,rst);
+  initial begin 
+    clk=0;
+    rst=1;
+    a=0;
+    #4 rst=0;
+    #4 a=1;
+    #4 a=0;
+    #4 a=1;
+    #4 a=0;
+    #4 a=1;
+  end
+  always #2 clk=~clk;
+  initial $monitor($time," clk=%b, rst=%b, a=%b, q=%b",clk,rst,a,q);
+  initial #30 $stop;
+  initial begin
+    $dumpvars;
+    $dumpfile("dump.vcd");
+  end
+endmodule
+
+
+3. FIFO-First in First Out
+module fifobuffer(dataout, full, empty, datain, clk,rst, rd, wr);
+output [7:0] dataout;
+output full;
+output empty;
+input [7:0] datain;
+input clk;
+input rst;
+input rd;
+input wr;
+reg [7:0]dataout;
+ 
+reg [7:0]fifo[7:0];
+  reg [2:0]readcounter = 0;
+  reg [2:0]writecounter = 0;
+//   assign empty =((readcounter==0) && (writecounter==0) )?1'b1:1'b0;
+  assign empty=((readcounter==writecounter)?1'b1:1'b0);
+  assign full =((writecounter==7) && (readcounter==0))?1'b1:1'b0;
+always@(posedge clk)
+  begin
+  if(rst)
+begin
+readcounter<=0;
+writecounter<=0;
+end
+else
+begin
+  if(rd==1'b1 && (!empty) )
+  begin
+dataout<=fifo[readcounter];
+readcounter<=readcounter+1;
+  end
+  else if(wr==1'b1 && (!full))
+begin
+  fifo[writecounter]<=datain;
+writecounter<=writecounter+1;
+ // $display("write count=%d",writecounter);
+end
+end
+end
+endmodule
+
+module fifobuffer_tb_v;
+reg [7:0] datain;
+reg clk;
+reg rst;
+reg rd;
+reg wr;
+wire [7:0] dataout;
+wire full;
+wire empty;
+initial
+  begin
+   datain = 8'h00;
+rd = 1'b0;
+wr = 1'b0;
+rst = 1'b1;
+    clk = 1'b0;
+    forever #2 clk=~clk;
+  end
+initial
+begin
+  @ (posedge clk)
+      rst = 1'b0;
+   wr = 1'b1;
+  @ (posedge clk)
+ datain = 8'h11;
+  @ (posedge clk)
+ datain = 8'h22;
+  @ (posedge clk)
+ datain = 8'h45;
+  @ (posedge clk)
+ datain = 8'h23;
+  @ (posedge clk)
+ datain = 8'h17;
+  @ (posedge clk)
+ datain = 8'h66;
+  @ (posedge clk)
+ wr = 1'b0;
+  rd=1;
+end
+//always #2 clk =~clk;
+initial $monitor($time, "dataout=%b, full =%b,empty = %b, datain= %b,clk=%b,rst=%b,rd=%b,wr=%b",dataout,full,empty,datain,clk,rst,rd,wr);
+initial #60 $stop;
+initial begin
+      $dumpvars;
+      $dumpfile("test.vcd");
+    end
+ fifobuffer fbuf(dataout,full,empty,datain,clk,rst,rd,wr);      
+endmodule
+
+
+
+4. Semaphore:
+// Code your testbench here
+// or browse Examples
+module top();
+semaphore sema = new(1); // Create semaphore with 1 key.
+
+initial begin 
+repeat(3) begin 
+fork
+        ////////// PROCESS 1 //////////////// 
+begin
+          $display("1: Waiting for key @time=%0t", $time); 
+sema.get(1); 
+          $display("1: Got the Key @time=%0t", $time); 
+#(10);// Do some work 
+sema.put(1); 
+          $display("1: Returning back key @time=%0t", $time); 
+#(10); 
+end
+        ////////// PROCESS 2 //////////////// 
+begin
+          #1;
+          $display("2: Waiting for Key @time=%0t", $time); 
+sema.get(1); 
+          $display("2: Got the Key @time=%0t", $time); 
+#(10);//Do some work 
+sema.put(1); 
+          $display("2: Returning back key @time=%0t", $time); 
+#(10); 
+end
+join
+      $display();
+end
+    #1000; 
+end
+endmodule : top
+
+
+
+
+5. Polymorphism
+// base class
+class base_class;
+  virtual function void display();
+    $display("Inside base class");
+  endfunction
+endclass
+ 
+// extended class 1
+class ext_class_1 extends base_class;
+  function void display();
+    $display("Inside extended class 1");
+  endfunction
+endclass
+ 
+// extended class 2
+class ext_class_2 extends base_class;
+  function void display();
+    $display("Inside extended class 2");
+  endfunction
+endclass
+ 
+// extended class 3
+class ext_class_3 extends base_class;
+  function void display();
+    $display("Inside extended class 3");
+  endfunction
+endclass
+ 
+// module
+module class_polymorphism;
+ 
+  initial begin
+     
+    //declare and create extended class
+    ext_class_1 ec_1 = new();
+    ext_class_2 ec_2 = new();
+    ext_class_3 ec_3 = new();
+  
+//     base_class bc=new();
+//     bc.display();
+   // base class handle
+    base_class b_c[3];
+     
+    //assigning extended class to base class
+    b_c[0] = ec_1;
+    b_c[1] = ec_2;
+    b_c[2] = ec_3;
+     
+    //accessing extended class methods using base class handle
+    b_c[0].display();
+    b_c[1].display();
+    b_c[2].display();
+   
+  end
+ 
+endmodule
+
+
+
+7. FUNCTIONAL COVERAGE
+// Code your design here
+module ALU (input wire [3:0] a,
+input wire [3:0] b,
+input wire [2:0] sel,
+output logic [7:0] out);
+  always @ (*)
+begin
+case (sel)
+3'b000 : out <= a + b;
+3'b001 : out <= a - b;
+3'b010 : out <= a * b;
+3'b011 : out <= a & b;
+3'b100 : out <= a ^ b;
+3'b101 : out <= !a&b;
+3'b110 : out <= a + !b;
+default: out <= 0;
+endcase
+end
+endmodule: ALU
+
+
+// Code your testbench here
+// or browse Examples
+module tb;
+logic [3:0] AA;
+logic [3:0] BB;
+logic [2:0] selector;
+wire [7:0] out_tb;
+// logic clk;
+ALU A1 ( .a (AA),
+.b (BB),
+.sel (selector),
+.out(out_tb)
+);
+covergroup cg;
+
+operations: coverpoint selector{
+bins algebra = {[0:2]};
+bins logical = {[3:7]};
+}
+size_A: coverpoint AA {
+bins min_A = {[0:4]};
+bins med_A = {[5:10]};
+bins max_A = {[11:15]};
+}
+size_B: coverpoint BB {
+bins min_B = {[0:4]};
+bins med_B = {[5:10]};
+bins max_B = {[11:15]};
+}
+endgroup
+cg c1;
+task t1;
+  $display($time,"A : %d B : %d Sel: %d OUTPUT: %d",AA,BB,selector,out_tb);
+endtask
+initial begin
+c1 = new();
+#1 selector <= 0; AA <= 0; BB <= 0;
+#1 t1; c1.sample();
+
+#1 selector <= 0; AA <= 'b1; BB <= 0;
+#1 t1;c1.sample();
+#1 selector <= 0; AA <= 'd10; BB <= 'd4;
+#1 t1;c1.sample();
+#1 selector <= 0; AA <= 'd11; BB <= 'd3;
+#1 t1;c1.sample();
+#1 selector <= 0; AA <= 'd14; BB <= 'd14;
+#1 t1;c1.sample();
+#1 selector <= 1; AA <= 0; BB <= 0;
+#1 t1;c1.sample();
+#1 selector <= 1; AA <= 'b1; BB <= 'd8;
+#1 t1;c1.sample();
+#1 selector <= 1; AA <= 'd10; BB <= 'd4;
+#1 t1;c1.sample();
+#1 selector <= 1; AA <= 'd11; BB <= 'd3;
+#1 t1; c1.sample();
+#1 selector <= 1; AA <= 'd14; BB <= 'd14;
+#1 t1;c1.sample();
+#1 selector <= 'd2; AA <= 0; BB <= 0;
+#1 t1;c1.sample();
+#1 selector <= 'd2; AA <= 'b1; BB <= 11;
+#1 t1;c1.sample();
+#1 selector <= 'd2; AA <= 'd10; BB <= 'd4;
+#1 t1;c1.sample();
+#1 selector <= 'd2; AA <= 'd11; BB <= 11;
+#1 t1;c1.sample();
+#1 selector <= 'd2; AA <= 'd14; BB <= 11;
+#1 t1;c1.sample();
+#1 selector <= 'd5; AA <= 0; BB <= 0;
+#1 t1;c1.sample();
+#1 selector <= 'd5; AA <= 'b1; BB <= 'd8;
+#1 t1;c1.sample();
+#1 selector <= 'd5; AA <= 'd10; BB <= 'd4;
+
+#1 t1;c1.sample();
+#1 selector <= 'd5; AA <= 'd11; BB <= 'd3;
+#1 t1;c1.sample();
+#1 selector <= 'd5; AA <= 'd14; BB <= 'd14;
+#1 t1;c1.sample();
+
+#10 $finish;
+end
+initial begin
+$dumpvars(1);
+$dumpfile("aludump.vcd");
+end
+  initial begin
+   #50 $display ("Coverage = %0.2f %%", c1.get_inst_coverage());
+
+  end
+endmodule
