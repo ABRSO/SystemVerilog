@@ -84,6 +84,131 @@ module sequence_detector_tb;
   end
 endmodule
 
+2.1.1 101 mealy
+
+`define s0 2'b00
+`define s1 2'b01
+`define s2 2'b10
+module seq_detect (y,clk,clr,x);
+input clk;
+input clr;
+input x;
+output y;
+reg y;
+reg [1:0]present_state;
+always@(posedge clk or posedge clr)
+begin
+if(clr)
+begin
+present_state <= `s0;
+y<=0;
+end
+else
+begin
+case(present_state)
+`s0: begin
+if(x)
+begin
+present_state <=`s1;
+y<=0;
+end
+else
+begin
+present_state <= `s0;
+
+y<=0;
+end
+end
+`s1:begin
+if(x)
+begin
+present_state<=`s1;
+y<=0;
+end
+else
+begin
+present_state<=`s2;
+y<=0;
+end
+end
+`s2: begin
+if(x)
+begin
+present_state<=`s1;
+y<=1;
+end
+else
+begin
+present_state<=`s0;
+y<=0;
+end
+end
+default: begin
+present_state=`s0;
+y=0;
+
+end
+endcase
+end
+end
+endmodule
+
+                                                                                                                              
+module seq_detectst;
+reg clk;
+reg clr;
+reg x;
+wire y;
+ 
+  initial begin clk=0;
+     forever #5 clk=~clk;
+  end
+    initial
+    begin
+      @ (posedge clk)
+    begin
+      //tc0
+      clr<=1;
+  x<=0;
+    end
+     @ (posedge clk)
+    clr<=0;
+      //tc1
+      @ (posedge clk)
+         x<=1;
+      @ (posedge clk)
+   x<=1;
+      @ (posedge clk)
+   x<= 1;
+      //tc2
+      @ (posedge clk)
+         x<=0;
+      @ (posedge clk)
+   x<=1;
+      //tc3
+        @ (posedge clk)
+         x<=0;
+      @ (posedge clk)
+   x<=0;
+      //tc4
+      @ (posedge clk)
+         x<=1;
+      @ (posedge clk)
+   x<=0;
+      @ (posedge clk)
+   x<= 1;
+     
+  end
+
+  initial # 500 $stop;
+  initial begin
+    $dumpvars;
+    $dumpfile ("dump.vcd");
+  end
+ 
+  seq_detect u1(y,clk,clr,x);
+endmodule
+
 
 3. FIFO-First in First Out
 module fifobuffer(dataout, full, empty, datain, clk,rst, rd, wr);
